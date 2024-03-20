@@ -43,7 +43,7 @@ async def fetch_data(url):
 
 @app.get('/')
 def home():
-    return {'msg': 'VMarket API is ONLINE'}
+    return { 'status': 200 ,'msg': 'VMarket API is ONLINE'}
 
 @app.get("/scrape-BSE-500")
 async def scrape_bse_500():
