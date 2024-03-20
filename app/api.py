@@ -41,6 +41,9 @@ async def fetch_data(url):
         logger.error(f"Failed to fetch data from {url}: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch data from the website")
 
+@app.get('/')
+def home():
+    return {'msg': 'VMarket API is ONLINE'}
 
 @app.get("/scrape-BSE-500")
 async def scrape_bse_500():
