@@ -42,11 +42,6 @@ async def fetch_data(url):
         raise HTTPException(status_code=500, detail="Failed to fetch data from the website")
 
 
-@app.get("/")
-async def status():
-    return {status : 200 , 'msg': "API is Online"}
-
-
 @app.get("/scrape-BSE-500")
 async def scrape_bse_500():
     url = 'https://www.moneycontrol.com/indian-indices/bse-500-12.html'
