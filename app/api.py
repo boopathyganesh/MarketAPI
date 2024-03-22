@@ -1,10 +1,9 @@
+#works Fine on vercel
 import logging
-import asyncio
-import requests
+import aiohttp
 from bs4 import BeautifulSoup
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.responses import JSONResponse
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
@@ -29,93 +28,51 @@ SCRAPING_URLS = {
     "SENSEX": "https://www.moneycontrol.com/indian-indices/sensex-4.html",
 }
 
-# Global variable to store scraped data
-scraped_data = {}
 
-
-def scrape_data(url: str) -> dict:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
-        "Cache-Control": "no-cache, must-revalidate",
-    }
-    try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, "html.parser")
-        print('started scraping')
-        logger.log(msg='started scraping')
-        element = soup.find("div", class_="indimprice")
-        current_price = element.find("span", id="sp_val").text.replace(",", "")
-        price_change_data = element.find("div", class_="pricupdn").text.split(" ")
-        price_change = price_change_data[0].replace("\n", "")
-        price_change_percentage = price_change_data[1].replace("\n", "").strip("()%")
-        data_dict = {
-            "current_price": current_price,
-            "price_change": price_change,
-            "price_change_percentage": price_change_percentage,
-        }
-        print(data_dict)
-        logger.log(msg=data_dict)
-        return data_dict
-    except Exception as e:
-        logger.error(f"Failed to scrape data from {url}: {e}")
-        return {f'Failed to scrape data from {url}':f'{e}'}
-
-
-async def update_data():
-    global scraped_data
-    while True:
-        for index_name, url in SCRAPING_URLS.items():
-            scraped_data[index_name] = scrape_data(url)
-            print(scraped_data)
-        await asyncio.sleep(5)
-        logger.log(msg='refreshing')
-        print('refreshing')
-
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(update_data())
-    print('startup event')
-    logger.log(msg='startup event')
+async def scrape_data(url: str) -> dict:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            response_text = await response.text()
+            soup = BeautifulSoup(response_text, "html.parser")
+            element = soup.find("div", class_="indimprice")
+            current_price = element.find("span", id="sp_val").text.replace(",", "")
+            price_change_data = element.find("div", class_="pricupdn").text.split(" ")
+            price_change = price_change_data[0].replace("\n", "")
+            price_change_percentage = price_change_data[1].replace("\n", "").strip("()%")
+            data_dict = {
+                "current_price": current_price,
+                "price_change": price_change,
+                "price_change_percentage": price_change_percentage,
+            }
+            return data_dict
 
 
 @app.get("/")
 async def home():
-    return {"status": 200, "msg": "VMarket API is ONLINE","data":scraped_data}
+    return {"status": 200, "msg": "VMarket API is ONLINE"}
 
 
 @app.get("/scrape/{index_name}")
 async def scrape_index_data(index_name: str):
-    if index_name.upper() not in SCRAPING_URLS:
-        print('index_name',index_name)
-        logger.log(msg=index_name)
+    url = SCRAPING_URLS.get(index_name.upper())
+    if not url:
         raise HTTPException(status_code=404, detail=f"Index '{index_name}' not found")
 
-    if not scraped_data.get(index_name):
-        print('scraped_data',scraped_data)
-        print('index_name',index_name)
-        logger.log(msg=index_name)
-        logger.log(msg=scraped_data)
-        raise HTTPException(status_code=500, detail="Data not available")
+    scraped_data = await scrape_data(url)
+    if not scraped_data:
+        raise HTTPException(status_code=500, detail="Failed to scrape data")
 
-    return JSONResponse(content=scraped_data[index_name])
+    return scraped_data
 
 
 # Error handling middleware
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"status": "error", "detail": exc.detail},
-    )
+    return {"status": "error", "detail": exc.detail}
 
 
 # General exception handler
 @app.exception_handler(Exception)
 async def generic_exception_handler(request, exc):
     logger.error(f"An unexpected error occurred: {exc}")
-    return JSONResponse(
-        status_code=500,
-        content={"status": "error", "detail": "An unexpected error occurred"},
-    )
+    return {"status": "error", "detail": "An unexpected error occurred"}
