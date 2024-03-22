@@ -4,9 +4,10 @@ from typing import Dict
 import requests
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException
-from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.responses import JSONResponse
+import time
+import threading
 
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
@@ -31,9 +32,16 @@ SCRAPING_URLS = {
     "SENSEX": "https://www.moneycontrol.com/indian-indices/sensex-4.html",
 }
 
+scraped_data = {}  # Store scraped data
 
-async def scrape_data(response: requests.Response) -> Dict[str, str]:
+
+def scrape_data(url: str) -> Dict[str, str]:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+        "Cache-Control": "no-cache, must-revalidate",
+    }
     try:
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
         element = soup.find("div", class_="indimprice")
@@ -46,23 +54,24 @@ async def scrape_data(response: requests.Response) -> Dict[str, str]:
             "price_change": price_change,
             "price_change_percentage": price_change_percentage,
         }
-        return {"status": "success", "data": data_dict}
+        return data_dict
     except Exception as e:
-        logger.error(f"Failed to scrape data: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch data from the website")
+        logger.error(f"Failed to scrape data from {url}: {e}")
+        return {}
 
 
-async def fetch_data(url: str) -> requests.Response:
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
-        "Cache-Control": "no-cache, must-revalidate",
-    }
-    try:
-        response = requests.get(url, headers=headers)
-        return response
-    except Exception as e:
-        logger.error(f"Failed to fetch data from {url}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to fetch data from the website")
+def update_data():
+    while True:
+        for index_name, url in SCRAPING_URLS.items():
+            data = scrape_data(url)
+            if data:
+                scraped_data[index_name] = data
+        time.sleep(5)  # Scraping every second
+
+
+update_thread = threading.Thread(target=update_data)
+update_thread.daemon = True
+update_thread.start()
 
 
 @app.get("/")
@@ -70,15 +79,11 @@ async def home():
     return {"status": 200, "msg": "VMarket API is ONLINE"}
 
 
-@app.get("/scrape/{index_name}")
-async def scrape_index_data(index_name: str):
-    url = SCRAPING_URLS.get(index_name.upper())
-    if not url:
+@app.get("/data/{index_name}")
+async def get_data(index_name: str):
+    if index_name not in scraped_data:
         raise HTTPException(status_code=404, detail=f"Index '{index_name}' not found")
-
-    response = await fetch_data(url)
-    scraped_data = await scrape_data(response)
-    return JSONResponse(content=jsonable_encoder(scraped_data))
+    return JSONResponse(content=scraped_data[index_name])
 
 
 # Error handling middleware
@@ -98,4 +103,3 @@ async def generic_exception_handler(request, exc):
         status_code=500,
         content={"status": "error", "detail": "An unexpected error occurred"},
     )
-
