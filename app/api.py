@@ -82,8 +82,9 @@ async def home():
 
 @app.get("/scrape/{index_name}")
 async def get_data(index_name: str):
+    print(scraped_data)
     if index_name not in scraped_data:
-        print(scraped_data[index_name])
+        #print(scraped_data[index_name])
         raise HTTPException(status_code=404, detail=f"Index '{index_name}' not found")
     return JSONResponse(content=scraped_data[index_name])
 
