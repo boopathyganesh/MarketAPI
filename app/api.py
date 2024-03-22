@@ -54,6 +54,7 @@ def scrape_data(url: str) -> Dict[str, str]:
             "price_change": price_change,
             "price_change_percentage": price_change_percentage,
         }
+        print(data_dict)
         return data_dict
     except Exception as e:
         logger.error(f"Failed to scrape data from {url}: {e}")
@@ -66,7 +67,7 @@ def update_data():
             data = scrape_data(url)
             if data:
                 scraped_data[index_name] = data
-        time.sleep(1)  # Scraping every second
+        time.sleep(5)  # Scraping every second
 
 
 update_thread = threading.Thread(target=update_data)
@@ -79,7 +80,7 @@ async def home():
     return {"status": 200, "msg": "VMarket API is ONLINE"}
 
 
-@app.get("/data/{index_name}")
+@app.get("/scrape/{index_name}")
 async def get_data(index_name: str):
     if index_name not in scraped_data:
         print(scraped_data[index_name])
