@@ -54,7 +54,7 @@ def scrape_data(url: str) -> Dict[str, str]:
             "price_change": price_change,
             "price_change_percentage": price_change_percentage,
         }
-        print(data_dict)
+        #print(data_dict)
         return data_dict
     except Exception as e:
         logger.error(f"Failed to scrape data from {url}: {e}")
@@ -82,9 +82,8 @@ async def home():
 
 @app.get("/scrape/{index_name}")
 async def get_data(index_name: str):
-    print(scraped_data)
+    #print(scraped_data)
     if index_name not in scraped_data:
-        #print(scraped_data[index_name])
         raise HTTPException(status_code=404, detail=f"Index '{index_name}' not found")
     return JSONResponse(content=scraped_data[index_name])
 
