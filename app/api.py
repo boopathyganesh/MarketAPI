@@ -43,6 +43,7 @@ def scrape_data(url: str) -> dict:
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
         print('started scraping')
+        logger.log(msg='started scraping')
         element = soup.find("div", class_="indimprice")
         current_price = element.find("span", id="sp_val").text.replace(",", "")
         price_change_data = element.find("div", class_="pricupdn").text.split(" ")
@@ -54,6 +55,7 @@ def scrape_data(url: str) -> dict:
             "price_change_percentage": price_change_percentage,
         }
         print(data_dict)
+        logger.log(msg=data_dict)
         return data_dict
     except Exception as e:
         logger.error(f"Failed to scrape data from {url}: {e}")
@@ -67,6 +69,7 @@ async def update_data():
             scraped_data[index_name] = scrape_data(url)
             print(scraped_data)
         await asyncio.sleep(5)
+        logger.log(msg='refreshing')
         print('refreshing')
 
 
@@ -74,26 +77,29 @@ async def update_data():
 async def startup_event():
     asyncio.create_task(update_data())
     print('startup event')
+    logger.log(msg='startup event')
 
 
 @app.get("/")
 async def home():
-    return {"status": 200, "msg": "VMarket API is ONLINE"}
+    return {"status": 200, "msg": "VMarket API is ONLINE","data":scraped_data}
 
 
 @app.get("/scrape/{index_name}")
 async def scrape_index_data(index_name: str):
     if index_name.upper() not in SCRAPING_URLS:
         print('index_name',index_name)
+        logger.log(msg=index_name)
         raise HTTPException(status_code=404, detail=f"Index '{index_name}' not found")
-    data = scraped_data[index_name]
-    print('data:',data)
+
     if not scraped_data.get(index_name):
         print('scraped_data',scraped_data)
         print('index_name',index_name)
+        logger.log(msg=index_name)
+        logger.log(msg=scraped_data)
         raise HTTPException(status_code=500, detail="Data not available")
 
-    return JSONResponse(content=data)
+    return JSONResponse(content=scraped_data[index_name])
 
 
 # Error handling middleware
