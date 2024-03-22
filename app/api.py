@@ -42,6 +42,7 @@ def scrape_data(url: str) -> dict:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
+        print('started scraping')
         element = soup.find("div", class_="indimprice")
         current_price = element.find("span", id="sp_val").text.replace(",", "")
         price_change_data = element.find("div", class_="pricupdn").text.split(" ")
@@ -52,6 +53,7 @@ def scrape_data(url: str) -> dict:
             "price_change": price_change,
             "price_change_percentage": price_change_percentage,
         }
+        print(data_dict)
         return data_dict
     except Exception as e:
         logger.error(f"Failed to scrape data from {url}: {e}")
@@ -65,11 +67,13 @@ async def update_data():
             scraped_data[index_name] = scrape_data(url)
             print(scraped_data)
         await asyncio.sleep(5)
+        print('refreshing')
 
 
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(update_data())
+    print('startup event')
 
 
 @app.get("/")
@@ -80,9 +84,11 @@ async def home():
 @app.get("/scrape/{index_name}")
 async def scrape_index_data(index_name: str):
     if index_name.upper() not in SCRAPING_URLS:
+        print(index_name)
         raise HTTPException(status_code=404, detail=f"Index '{index_name}' not found")
 
     if not scraped_data.get(index_name):
+        print(scraped_data)
         raise HTTPException(status_code=500, detail="Data not available")
 
     return JSONResponse(content=scraped_data[index_name])
