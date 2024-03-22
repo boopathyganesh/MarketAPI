@@ -88,6 +88,7 @@ async def scrape_index_data(index_name: str):
     if index_name.upper() not in scraped_data:
         raise HTTPException(status_code=500, detail=f"Data for index '{index_name}' not available")
 
+    print(scraped_data[index_name.upper()])
     return JSONResponse(content=jsonable_encoder(scraped_data[index_name.upper()]))
 
 
