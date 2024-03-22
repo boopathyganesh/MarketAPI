@@ -57,7 +57,7 @@ def scrape_data(url: str) -> dict:
         return data_dict
     except Exception as e:
         logger.error(f"Failed to scrape data from {url}: {e}")
-        return {}
+        return {f'Failed to scrape data from {url}':f'{e}'}
 
 
 async def update_data():
