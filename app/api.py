@@ -84,14 +84,16 @@ async def home():
 @app.get("/scrape/{index_name}")
 async def scrape_index_data(index_name: str):
     if index_name.upper() not in SCRAPING_URLS:
-        print(index_name)
+        print('index_name',index_name)
         raise HTTPException(status_code=404, detail=f"Index '{index_name}' not found")
-
+    data = scraped_data[index_name]
+    print('data:',data)
     if not scraped_data.get(index_name):
-        print(scraped_data)
+        print('scraped_data',scraped_data)
+        print('index_name',index_name)
         raise HTTPException(status_code=500, detail="Data not available")
 
-    return JSONResponse(content=scraped_data[index_name])
+    return JSONResponse(content=data)
 
 
 # Error handling middleware
