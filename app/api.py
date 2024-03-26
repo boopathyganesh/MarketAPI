@@ -49,7 +49,7 @@ async def scrape_data(url: str) -> dict:
 
 @app.get("/")
 async def home():
-    return {"status": 200, "msg": "VMarket API is ONLINE"}
+    return {"status": 200, "msg": "VMarket is ONLINE"}
 
 
 @app.get("/scrape")
