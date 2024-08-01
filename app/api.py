@@ -1,5 +1,5 @@
-#works Fine on vercel
-import logging,random
+import logging
+import random
 import aiohttp
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException
@@ -32,19 +32,33 @@ SCRAPING_URLS = {
 async def scrape_data(url: str) -> dict:
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
-            response_text = await response.text()
+            raw_data = await response.read()
+            try:
+                response_text = raw_data.decode('utf-8')
+            except UnicodeDecodeError:
+                response_text = raw_data.decode('latin1')  # Fallback to latin1 encoding if utf-8 fails
+
             soup = BeautifulSoup(response_text, "html.parser")
             element = soup.find("div", class_="indimprice")
-            current_price = element.find("span", id="sp_val").text.replace(",", "")
-            price_change_data = element.find("div", class_="pricupdn").text.split(" ")
-            price_change = price_change_data[0].replace("\n", "")
-            price_change_percentage = price_change_data[1].replace("\n", "").strip("()%")
-            data_dict = {
-                "current_price": current_price,
-                "price_change": price_change,
-                "price_change_percentage": price_change_percentage,
-            }
-            return data_dict
+            if not element:
+                logger.warning(f"Failed to find the element on the page: {url}")
+                return {}
+
+            try:
+                current_price = element.find("span", id="sp_val").text.replace(",", "")
+                price_change_data = element.find("div", class_="pricupdn").text.split(" ")
+                price_change = price_change_data[0].replace("\n", "")
+                price_change_percentage = price_change_data[1].replace("\n", "").strip("()%")
+                data_dict = {
+                    "current_price": current_price,
+                    "price_change": price_change,
+                    "price_change_percentage": price_change_percentage,
+                }
+                #logger.info(f"Scraped data: {data_dict}")
+                return data_dict
+            except AttributeError as e:
+                logger.warning(f"Attribute error when parsing the page: {url}, error: {e}")
+                return {}
 
 
 @app.get("/")
@@ -66,27 +80,6 @@ async def scrape_all_indices():
         raise HTTPException(status_code=500, detail="Failed to scrape data for any index")
 
     return scraped_data
-
-'''@app.get("/scrape")
-async def get_all_data():
-    dummy_data = {
-        "BSE-500": {
-                "current_price": str(round(random.uniform(30000, 35000), 2)),
-                "price_change": str(round(random.uniform(-100, 100), 2)),
-                "price_change_percentage": str(round(random.uniform(-2, 2), 2)),
-        },
-        "NIFTY-50": {
-                "current_price": str(round(random.uniform(20000, 25000), 2)),
-                "price_change": str(round(random.uniform(-100, 100), 2)),
-                "price_change_percentage": str(round(random.uniform(-2, 2), 2)),
-        },
-        "SENSEX": {
-                "current_price": str(round(random.uniform(70000, 75000), 2)),
-                "price_change": str(round(random.uniform(-500, 500), 2)),
-                "price_change_percentage": str(round(random.uniform(-2, 2), 2)),
-        }
-    }
-    return dummy_data'''
 
 
 # Error handling middleware
