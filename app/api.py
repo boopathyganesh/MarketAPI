@@ -18,7 +18,7 @@ app.add_middleware(
     allow_origins=["*"],  # Adjust this to your frontend URL when in production
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
+    allow_headers=["https://www.value1.in/","http://127.0.0.1:8000/"],
 )
 
 # Constants
